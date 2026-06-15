@@ -1,0 +1,820 @@
+# Project: LoL Asset Studio
+
+Build a Windows desktop application called **LoL Asset Studio**.
+
+The goal is to create a standalone asset preview and iteration tool for League of Legends modding research. The tool must preview extracted assets outside the game. It must not inject into the game, modify the running League client, automate gameplay, bypass anti-cheat, or provide any competitive advantage.
+
+This is a **development and visualization tool**, not a game engine, not a mod loader, and not a mod injector.
+
+---
+
+## Core Goal
+
+Create a desktop application that can:
+
+1. Browse an extracted League of Legends asset folder.
+2. Preview textures.
+3. Display 3D character models.
+4. Display skeletons and bone hierarchy.
+5. Play skeletal animations.
+6. Parse Riot BIN text exports.
+7. Build an internal VFX graph from BIN data.
+8. Preview simplified VFX using a custom particle runtime.
+9. Attach VFX to animated bones.
+10. Hot reload modified text BIN files for faster iteration.
+
+The first deliverable should be a working MVP, not a full final product.
+
+---
+
+## Important Scope Rules
+
+Do not implement:
+
+* Game injection
+* Runtime memory editing
+* Anti-cheat bypass
+* Online gameplay modifications
+* Riot client automation
+* Direct patching of the live League installation
+
+Only support:
+
+* User-selected local extracted folders
+* Text BIN exports
+* Local preview rendering
+* Developer inspection tools
+
+---
+
+## Technology Stack
+
+Language:
+
+* C++20
+
+Build:
+
+* CMake
+
+Platform:
+
+* Windows 10/11
+
+Graphics/UI:
+
+* OpenGL 4.6
+* GLFW
+* GLAD
+* ImGui
+* glm
+
+Asset/Data:
+
+* stb_image
+* nlohmann/json
+* Assimp optional for OBJ/FBX/glTF loading during early development
+
+Recommended initial supported formats:
+
+* `.png`, `.jpg`, `.tga` for texture preview
+* `.dds` support can be added behind an interface
+* `.obj`, `.gltf`, `.glb`, `.fbx` through Assimp for MVP model loading
+* Riot-specific `.skn`, `.skl`, `.anm`, `.tex` should be represented as future loader modules or stubs unless implemented carefully
+
+---
+
+## Development Strategy
+
+Build this in small vertical slices.
+
+Do not attempt to implement every feature at once.
+
+The first implementation should produce:
+
+1. A compilable CMake project.
+2. A working GLFW/OpenGL/ImGui window.
+3. A dock-style UI layout.
+4. An asset browser panel.
+5. Texture preview for common image files.
+6. A 3D viewport with orbit camera.
+7. Basic model rendering using Assimp.
+8. A console/log panel.
+9. Clear module boundaries for future LoL-specific loaders.
+
+After the MVP is working, add BIN parsing and VFX preview.
+
+---
+
+## Project Architecture
+
+Use clear module separation.
+
+Suggested folder structure:
+
+```text
+LoLAssetStudio/
+├── CMakeLists.txt
+├── external/
+├── assets/
+├── src/
+│   ├── main.cpp
+│   ├── core/
+│   │   ├── Application.h/.cpp
+│   │   ├── Layer.h/.cpp
+│   │   ├── Log.h/.cpp
+│   │   ├── FileWatcher.h/.cpp
+│   │   └── Time.h/.cpp
+│   ├── platform/
+│   │   └── Window.h/.cpp
+│   ├── renderer/
+│   │   ├── Renderer.h/.cpp
+│   │   ├── Shader.h/.cpp
+│   │   ├── Texture2D.h/.cpp
+│   │   ├── Mesh.h/.cpp
+│   │   ├── Material.h/.cpp
+│   │   ├── Camera.h/.cpp
+│   │   ├── GridRenderer.h/.cpp
+│   │   ├── DebugDraw.h/.cpp
+│   │   └── ParticleRenderer.h/.cpp
+│   ├── scene/
+│   │   ├── Scene.h/.cpp
+│   │   ├── Entity.h/.cpp
+│   │   ├── Transform.h/.cpp
+│   │   └── SceneNode.h/.cpp
+│   ├── assets/
+│   │   ├── AssetBrowser.h/.cpp
+│   │   ├── AssetManager.h/.cpp
+│   │   ├── ModelLoader.h/.cpp
+│   │   ├── TextureLoader.h/.cpp
+│   │   └── LoL/
+│   │       ├── TexLoader.h/.cpp
+│   │       ├── SknLoader.h/.cpp
+│   │       ├── SklLoader.h/.cpp
+│   │       └── AnmLoader.h/.cpp
+│   ├── animation/
+│   │   ├── Skeleton.h/.cpp
+│   │   ├── Bone.h/.cpp
+│   │   ├── AnimationClip.h/.cpp
+│   │   ├── Animator.h/.cpp
+│   │   └── Skinning.h/.cpp
+│   ├── bin/
+│   │   ├── BinParser.h/.cpp
+│   │   ├── BinTokenizer.h/.cpp
+│   │   ├── BinAst.h/.cpp
+│   │   ├── BinTypes.h/.cpp
+│   │   └── BinToVfxGraph.h/.cpp
+│   ├── vfx/
+│   │   ├── VfxGraph.h/.cpp
+│   │   ├── VfxSystem.h/.cpp
+│   │   ├── VfxEmitter.h/.cpp
+│   │   ├── Particle.h/.cpp
+│   │   ├── ParticleSystem.h/.cpp
+│   │   ├── ParticleRuntime.h/.cpp
+│   │   ├── Curve.h/.cpp
+│   │   └── Attachment.h/.cpp
+│   ├── ui/
+│   │   ├── MainMenuBar.h/.cpp
+│   │   ├── AssetBrowserPanel.h/.cpp
+│   │   ├── ViewportPanel.h/.cpp
+│   │   ├── InspectorPanel.h/.cpp
+│   │   ├── ConsolePanel.h/.cpp
+│   │   └── AnimationPanel.h/.cpp
+│   └── tests/
+│       ├── BinParserTests.cpp
+│       └── CurveTests.cpp
+└── README.md
+```
+
+---
+
+## Coding Requirements
+
+Use:
+
+* Modern C++20
+* RAII
+* Smart pointers
+* `std::filesystem`
+* `std::optional`
+* `std::variant` where useful
+* Clear ownership rules
+* No global mutable state
+* Clear error handling
+* Detailed comments for complex parsing/rendering logic
+* CMake targets for app and tests
+
+Avoid:
+
+* Giant single-file implementation
+* Hardcoded absolute paths
+* Hidden global OpenGL state without wrapper classes
+* Fake parsers that silently ignore errors
+* Placeholder code that pretends to support Riot formats without clear TODO notes
+
+---
+
+# Phase 1: Working MVP
+
+## 1. Application Shell
+
+Create:
+
+* GLFW window
+* GLAD OpenGL loader
+* ImGui context
+* Docking layout
+* Dark theme
+* Main loop
+* Delta time tracking
+* Resize handling
+* Basic logging
+
+UI layout:
+
+```text
+Top:
+- Toolbar / menu bar
+
+Left:
+- Asset Browser
+
+Center:
+- 3D Viewport
+
+Right:
+- Inspector
+
+Bottom:
+- Console / logs / parse errors
+```
+
+---
+
+## 2. Asset Browser
+
+Implement a folder browser using `std::filesystem`.
+
+Features:
+
+* Select root asset folder
+* Show folder tree
+* Show file list
+* Search files by name
+* Filter by extension
+* Double-click to open supported asset
+
+Supported initially:
+
+```text
+Textures:
+.png
+.jpg
+.tga
+
+Models:
+.obj
+.fbx
+.gltf
+.glb
+
+Data:
+.json
+.bin.txt
+```
+
+When unsupported file is selected, show metadata only.
+
+---
+
+## 3. Texture Preview
+
+Implement:
+
+* CPU image loading through stb_image
+* OpenGL texture upload
+* ImGui preview image
+* Show width, height, channels, path
+* Checkerboard background for alpha preview if practical
+
+Texture preview is required for MVP.
+
+---
+
+## 4. 3D Viewport
+
+Implement:
+
+* OpenGL framebuffer rendered inside ImGui viewport
+* Orbit camera
+* Pan
+* Zoom
+* Grid floor
+* Axes gizmo or simple XYZ lines
+* Wireframe toggle
+* Backface culling toggle
+* Reset camera button
+
+Model rendering:
+
+* Load model through Assimp
+* Convert Assimp meshes into internal `Mesh`
+* Render with basic lit or unlit shader
+* Support albedo texture if provided by Assimp
+* Display bounding box
+
+---
+
+## 5. Scene Graph
+
+Implement a lightweight scene graph.
+
+Core types:
+
+```cpp
+struct Transform
+{
+    glm::vec3 position;
+    glm::quat rotation;
+    glm::vec3 scale;
+};
+
+class SceneNode
+{
+public:
+    Transform localTransform;
+    std::vector<std::unique_ptr<SceneNode>> children;
+};
+```
+
+It does not need a full ECS at first.
+
+---
+
+# Phase 2: Skeleton and Animation
+
+Implement after Phase 1 works.
+
+Features:
+
+* Internal `Skeleton`
+* Bone hierarchy display
+* Debug bone rendering using lines
+* Animation clip representation
+* Animation timeline UI
+* Play/pause
+* Frame stepping
+* Speed control
+* Current time display
+* Loop toggle
+
+Use Assimp animation support first.
+
+Riot-specific `.skl` and `.anm` loaders should be added later behind interfaces.
+
+Suggested interfaces:
+
+```cpp
+class ISkeletonLoader
+{
+public:
+    virtual ~ISkeletonLoader() = default;
+    virtual Expected<Skeleton> Load(const std::filesystem::path& path) = 0;
+};
+
+class IAnimationLoader
+{
+public:
+    virtual ~IAnimationLoader() = default;
+    virtual Expected<AnimationClip> Load(const std::filesystem::path& path) = 0;
+};
+```
+
+---
+
+# Phase 3: BIN Text Parser
+
+Implement a parser for Riot BIN text exports, not binary BIN files at first.
+
+Goal:
+
+* Parse text-exported BIN files into a structured AST.
+* Preserve unknown fields.
+* Report parse errors with line and column.
+* Do not crash on unknown types.
+
+Support important object types gradually:
+
+```text
+SkinCharacterDataProperties
+ResourceResolver
+VfxSystemDefinitionData
+VfxEmitterDefinitionData
+VfxParticleDefinitionData
+Materials
+Textures
+Curves
+Child effects
+Attachment/bone references
+```
+
+Parser requirements:
+
+* Tokenizer
+* AST nodes
+* Type name
+* Field name
+* Primitive values
+* Strings
+* Numbers
+* Booleans
+* Lists
+* Objects
+* Hash/reference-like fields
+* Unknown field preservation
+
+Create tests for:
+
+* Empty file
+* Simple object
+* Nested object
+* List of objects
+* Unknown field
+* Invalid syntax
+* VFX system with emitters
+* Curves
+
+Output:
+
+```cpp
+struct BinObject
+{
+    std::string typeName;
+    std::unordered_map<std::string, BinValue> fields;
+};
+
+using BinValue = std::variant<
+    std::monostate,
+    bool,
+    int64_t,
+    double,
+    std::string,
+    std::vector<BinValue>,
+    BinObject
+>;
+```
+
+---
+
+# Phase 4: VFX Graph
+
+Convert parsed BIN AST into an internal VFX graph.
+
+Do not try to support every Riot feature immediately.
+
+Internal representation:
+
+```text
+VfxGraph
+├── VfxSystem
+│   ├── Emitters
+│   ├── Materials
+│   ├── Curves
+│   ├── ChildSystems
+│   └── Attachments
+```
+
+Suggested types:
+
+```cpp
+struct VfxGraph
+{
+    std::string name;
+    std::vector<VfxEmitter> emitters;
+    std::vector<VfxMaterialRef> materials;
+    std::vector<VfxCurve> curves;
+    std::vector<VfxChildEffect> children;
+};
+
+struct VfxEmitter
+{
+    std::string name;
+    float spawnRate = 0.0f;
+    float lifetimeMin = 1.0f;
+    float lifetimeMax = 1.0f;
+    glm::vec3 velocityMin = glm::vec3(0);
+    glm::vec3 velocityMax = glm::vec3(0);
+    glm::vec4 startColor = glm::vec4(1);
+    glm::vec4 endColor = glm::vec4(1, 1, 1, 0);
+    float startSize = 1.0f;
+    float endSize = 0.0f;
+    std::string texturePath;
+    std::string materialName;
+};
+```
+
+Mapping approach:
+
+* Map known BIN fields to internal fields.
+* Unknown fields should appear in the Inspector.
+* Log unsupported features clearly.
+* Prefer partial preview over failure.
+
+---
+
+# Phase 5: Particle Runtime
+
+Create a custom CPU particle runtime first.
+
+Particle data:
+
+```cpp
+struct Particle
+{
+    glm::vec3 position;
+    glm::vec3 velocity;
+    glm::vec4 color;
+    float size;
+    float rotation;
+    float age;
+    float lifetime;
+};
+```
+
+Emitter features:
+
+* Spawn rate
+* Burst spawn
+* Lifetime min/max
+* Velocity min/max
+* Color over lifetime
+* Size over lifetime
+* Rotation over lifetime
+* Billboard rendering
+* Texture animation placeholder
+* Max particle count
+
+Renderer:
+
+* Use OpenGL instancing
+* Billboard quads
+* Texture atlas support placeholder
+* Additive and alpha blend material modes
+* Depth sorting can be added later
+
+Required for first particle version:
+
+* Spawn particles
+* Update particles
+* Kill expired particles
+* Render billboard quads
+* Draw particle count in Inspector
+
+---
+
+# Phase 6: Champion + VFX Integration
+
+Attach VFX to bones.
+
+Features:
+
+* Select bone from skeleton hierarchy
+* Attach VFX system to bone
+* Effect follows animated bone transform
+* Support multiple active effects
+* Show attachment list in Inspector
+
+Common bone names:
+
+```text
+root
+head
+weapon
+hand_l
+hand_r
+wing
+spine
+```
+
+Implementation idea:
+
+```cpp
+struct VfxAttachment
+{
+    std::string boneName;
+    glm::mat4 localOffset;
+    std::shared_ptr<VfxSystemInstance> vfx;
+};
+```
+
+Each frame:
+
+```text
+1. Animator updates skeleton pose.
+2. Bone world matrices are computed.
+3. VFX attachment reads target bone matrix.
+4. VFX emitter transform is updated.
+5. Particle runtime updates and renders.
+```
+
+---
+
+# Phase 7: Hot Reload
+
+Watch text BIN files.
+
+When modified:
+
+1. Detect file change.
+2. Reparse BIN.
+3. Rebuild VFX graph.
+4. Preserve UI selection if possible.
+5. Update active VFX preview.
+6. Log success or parse error.
+7. Do not crash on invalid file.
+
+Use a simple polling file watcher first:
+
+```text
+Every 0.5 seconds:
+- Check last_write_time
+- If changed, reload
+```
+
+Later it can be replaced with Win32 file watching.
+
+---
+
+# UI Panels
+
+## Asset Browser Panel
+
+Show:
+
+* Folder tree
+* Search bar
+* Extension filters
+* Selected file metadata
+
+Actions:
+
+* Open texture
+* Open model
+* Open BIN text export
+* Reveal in Explorer
+
+---
+
+## Viewport Panel
+
+Show:
+
+* Rendered scene
+* Camera controls
+* Grid
+* Model
+* Skeleton debug
+* VFX particles
+
+Toolbar toggles:
+
+* Wireframe
+* Show skeleton
+* Show grid
+* Show bounds
+* Show particles
+* Pause simulation
+* Reset camera
+
+---
+
+## Inspector Panel
+
+Show selected object details.
+
+For texture:
+
+* Path
+* Width
+* Height
+* Channels
+* OpenGL texture ID
+
+For model:
+
+* Mesh count
+* Vertex count
+* Index count
+* Material count
+* Bounding box
+
+For skeleton:
+
+* Bone count
+* Bone hierarchy
+* Selected bone transform
+
+For animation:
+
+* Clip name
+* Duration
+* Current time
+* Playback speed
+* Loop
+
+For VFX:
+
+* Effect hierarchy
+* Emitters
+* Materials
+* Curves
+* Child effects
+* Attachments
+* Particle count
+* Unsupported BIN fields
+
+Editable VFX values:
+
+* Spawn rate
+* Lifetime
+* Start color
+* End color
+* Start size
+* End size
+* Velocity
+* Texture path
+
+All editable values should update the runtime preview immediately.
+
+---
+
+## Console Panel
+
+Show logs:
+
+* Info
+* Warnings
+* Errors
+* Parse errors
+* Asset load errors
+* Hot reload events
+
+Each log entry should include:
+
+* Timestamp
+* Severity
+* Message
+* Optional file path
+* Optional line/column
+
+---
+
+# Future Extensions
+
+Do not implement these in the MVP, but design architecture so they can be added later:
+
+* Riot `.tex` loader
+* Riot `.skn` loader
+* Riot `.skl` loader
+* Riot `.anm` loader
+* Ribbon renderer
+* Beam renderer
+* Distortion shaders
+* Soft particles
+* GPU particle simulation
+* Material editor
+* Shader graph
+* Timeline editor
+* BIN dependency graph
+* Texture atlas viewer
+* Export simplified preview to Unity particle prefab
+* Maya/Blender bridge plugin
+
+---
+
+# Deliverables Requested From Codex
+
+Start by implementing **Phase 1 only**, but create interfaces and folders for later phases.
+
+Generate:
+
+1. Complete CMake project structure.
+2. Main application loop.
+3. GLFW + GLAD + ImGui setup.
+4. Renderer skeleton.
+5. Asset browser panel.
+6. Texture preview.
+7. 3D viewport with orbit camera.
+8. Basic model loading through Assimp.
+9. Console/log panel.
+10. Placeholder interfaces for BIN parser, skeleton loader, animation loader, and VFX graph.
+11. README with build instructions.
+12. At least one small unit test target or parser placeholder test.
+
+Do not claim unsupported LoL formats are complete.
+
+Use TODO comments for Riot-specific loaders.
+
+Make the code compile.
+
+Prioritize correctness, clean architecture, and a working MVP over feature completeness.

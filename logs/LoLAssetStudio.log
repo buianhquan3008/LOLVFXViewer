@@ -1,0 +1,10 @@
+=== LoL Asset Studio startup ===
+18:24:55 [Info] LoL Asset Studio logging initialized
+18:24:55 [Info] Window created successfully
+18:24:55 [Info] GLAD initialized
+18:24:55 [Info] OpenGL vendor: Intel | renderer: Intel(R) Iris(R) Xe Graphics | version: 4.6.0 - Build 32.0.101.7026
+18:24:55 [Info] Renderer initialized
+18:24:55 [Info] ImGui initialized
+18:24:55 [Info] Application initialized
+18:24:59 [Info] Opened asset | D:\Designer\LOLVFXViewer\data\Double Dagger Stab.fbx
+18:24:59 [Info] Loaded model animation data: bones=178, clips=1, meshes=2 | D:\Designer\LOLVFXViewer\data\Double Dagger Stab.fbx
