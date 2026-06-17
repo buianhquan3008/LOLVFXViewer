@@ -34,6 +34,7 @@ public:
     std::vector<glm::vec3> BuildDebugLineVertices(const glm::mat4& debugTransform = glm::mat4(1.0f)) const;
     std::string ValidationMessage() const { return m_validationMessage; }
     float BoneMovementDistance(int boneIndex) const;
+    std::vector<glm::vec3> BuildBindDebugLineVertices(const glm::mat4& debugTransform) const;
 
 private:
     void EvaluatePose();

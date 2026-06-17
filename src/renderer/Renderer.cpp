@@ -196,16 +196,21 @@ void Renderer::SetSkinningMatrices(const ModelData* model, const std::vector<glm
         return;
     }
 
-    const Skeleton& skeleton = model->skeleton;
-    std::vector<glm::mat4> skinningMatrices(skeleton.bones.size(), glm::mat4(1.0f));
-    const std::size_t boneCount = std::min<std::size_t>(globalPose.size(), skeleton.bones.size());
-    for (std::size_t boneIndex = 0; boneIndex < boneCount; ++boneIndex)
-    {
-        skinningMatrices[boneIndex] = model->globalInverseTransform * globalPose[boneIndex] * skeleton.bones[boneIndex].inverseBindTransform;
-    }
-
     for (std::size_t meshIndex = 0; meshIndex < m_meshes.size(); ++meshIndex)
     {
+        const Skeleton& skeleton = model->skeleton;
+        const MeshData& meshData = model->meshes[meshIndex];
+        std::vector<glm::mat4> skinningMatrices(skeleton.bones.size(), glm::mat4(1.0f));
+        const std::size_t boneCount = std::min<std::size_t>(globalPose.size(), skeleton.bones.size());
+        for (std::size_t boneIndex = 0; boneIndex < boneCount; ++boneIndex)
+        {
+            const glm::mat4 currentPoseInModelSpace = model->globalInverseTransform * globalPose[boneIndex];
+            if (boneIndex < meshData.boneOffsetMatrices.size())
+            {
+                skinningMatrices[boneIndex] = currentPoseInModelSpace * meshData.boneOffsetMatrices[boneIndex];
+            }
+        }
+
         m_meshes[meshIndex].dynamicVertices = m_meshes[meshIndex].baseVertices;
         for (Vertex& vertex : m_meshes[meshIndex].dynamicVertices)
         {

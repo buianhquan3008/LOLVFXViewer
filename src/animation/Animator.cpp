@@ -90,6 +90,7 @@ void Animator::SetData(const Skeleton* skeleton, const std::vector<AnimationClip
     m_clips = clips;
     m_currentTimeSeconds = 0.0f;
     m_activeClipIndex = (clips != nullptr && !clips->empty()) ? 0 : -1;
+    // m_activeClipIndex = -1;
     m_validationMessage.clear();
     EvaluatePose();
 }
@@ -196,10 +197,11 @@ const AnimationClip* Animator::ActiveClip() const
     return &(*m_clips)[m_activeClipIndex];
 }
 
-std::vector<glm::vec3> Animator::BuildDebugLineVertices(const glm::mat4& debugTransform) const
+std::vector<glm::vec3> Animator::BuildBindDebugLineVertices(const glm::mat4& debugTransform) const
 {
     std::vector<glm::vec3> vertices;
-    if (!HasSkeleton() || m_globalPose.size() != m_skeleton->bones.size())
+
+    if (!HasSkeleton())
     {
         return vertices;
     }
@@ -207,13 +209,35 @@ std::vector<glm::vec3> Animator::BuildDebugLineVertices(const glm::mat4& debugTr
     for (std::size_t boneIndex = 0; boneIndex < m_skeleton->bones.size(); ++boneIndex)
     {
         const Bone& bone = m_skeleton->bones[boneIndex];
+
+        if (!bone.isBone)
+        {
+            continue;
+        }
+
         if (bone.parentIndex < 0)
         {
             continue;
         }
 
-        const glm::vec3 childPosition = glm::vec3(debugTransform * m_globalPose[boneIndex] * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        const glm::vec3 parentPosition = glm::vec3(debugTransform * m_globalPose[bone.parentIndex] * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        int parentBoneIndex = bone.parentIndex;
+        while (parentBoneIndex >= 0 && !m_skeleton->bones[parentBoneIndex].isBone)
+        {
+            parentBoneIndex = m_skeleton->bones[parentBoneIndex].parentIndex;
+        }
+        if (parentBoneIndex < 0)
+        {
+            continue;
+        }
+
+        const glm::vec3 parentPosition = glm::vec3(
+            debugTransform * m_skeleton->bones[parentBoneIndex].globalBindTransform * glm::vec4(0, 0, 0, 1)
+        );
+
+        const glm::vec3 childPosition = glm::vec3(
+            debugTransform * bone.globalBindTransform * glm::vec4(0, 0, 0, 1)
+        );
+
         vertices.push_back(parentPosition);
         vertices.push_back(childPosition);
     }
@@ -351,5 +375,53 @@ float Animator::BoneMovementDistance(int boneIndex) const
     const glm::vec3 current = glm::vec3(m_globalPose[boneIndex][3]);
     const glm::vec3 bind = glm::vec3(m_skeleton->bones[boneIndex].globalBindTransform[3]);
     return glm::length(current - bind);
+}
+
+std::vector<glm::vec3> Animator::BuildDebugLineVertices(const glm::mat4& debugTransform) const
+{
+    std::vector<glm::vec3> vertices;
+
+    if (!HasSkeleton() || m_globalPose.size() != m_skeleton->bones.size())
+    {
+        return vertices;
+    }
+
+    for (std::size_t boneIndex = 0; boneIndex < m_skeleton->bones.size(); ++boneIndex)
+    {
+        const Bone& bone = m_skeleton->bones[boneIndex];
+
+        if (!bone.isBone)
+        {
+            continue;
+        }
+
+        if (bone.parentIndex < 0)
+        {
+            continue;
+        }
+
+        int parentBoneIndex = bone.parentIndex;
+        while (parentBoneIndex >= 0 && !m_skeleton->bones[parentBoneIndex].isBone)
+        {
+            parentBoneIndex = m_skeleton->bones[parentBoneIndex].parentIndex;
+        }
+        if (parentBoneIndex < 0)
+        {
+            continue;
+        }
+
+        const glm::vec3 childPosition = glm::vec3(
+            debugTransform * m_globalPose[boneIndex] * glm::vec4(0, 0, 0, 1)
+        );
+
+        const glm::vec3 parentPosition = glm::vec3(
+            debugTransform * m_globalPose[parentBoneIndex] * glm::vec4(0, 0, 0, 1)
+        );
+
+        vertices.push_back(parentPosition);
+        vertices.push_back(childPosition);
+    }
+
+    return vertices;
 }
 }

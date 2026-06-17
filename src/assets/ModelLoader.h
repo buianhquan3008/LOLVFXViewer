@@ -26,6 +26,8 @@ struct MeshData
 {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
+    glm::mat4 meshToModelSpace = glm::mat4(1.0f);
+    std::vector<glm::mat4> boneOffsetMatrices;
 };
 
 struct ModelData
