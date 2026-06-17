@@ -1,5 +1,6 @@
 #include "assets/AssetManager.h"
 
+#include "assets/RiotModelLoader.h"
 #include "assets/TextureLoader.h"
 
 #include <algorithm>
@@ -58,7 +59,7 @@ bool AssetManager::IsSupportedTexture(const std::filesystem::path& path) const
 bool AssetManager::IsSupportedModel(const std::filesystem::path& path) const
 {
     const auto ext = Lowercase(path.extension().string());
-    return ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb";
+    return ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb" || RiotModelLoader::IsRiotModelPath(path);
 }
 
 bool AssetManager::IsDataFile(const std::filesystem::path& path) const
@@ -88,7 +89,14 @@ AssetSelection AssetManager::Open(const std::filesystem::path& path)
     {
         selection.type = AssetSelectionType::Model;
         std::string errorMessage;
-        selection.model = ModelLoader::Load(path, errorMessage);
+        if (RiotModelLoader::IsRiotModelPath(path))
+        {
+            selection.model = RiotModelLoader::Load(path, errorMessage);
+        }
+        else
+        {
+            selection.model = ModelLoader::Load(path, errorMessage);
+        }
         if (!selection.model)
         {
             selection.type = AssetSelectionType::Unsupported;

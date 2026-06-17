@@ -59,3 +59,7 @@ If `cmake` is not on your `PATH`, use the copy bundled with Visual Studio, for e
 
 - Riot-specific loaders are intentionally left as TODO placeholders.
 - The viewport is focused on clean architecture and iteration speed for Phase 1, not on final rendering fidelity.
+
+## Documentation
+
+- [Riot SKN/SKL/ANM implementation notes](docs/riot-skn-skl-anm-implementation.md)
