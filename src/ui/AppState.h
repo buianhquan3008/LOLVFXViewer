@@ -4,6 +4,7 @@
 #include "assets/AssetManager.h"
 #include "renderer/Camera.h"
 #include "renderer/Renderer.h"
+#include "vfx/VfxRuntime.h"
 
 #include <filesystem>
 #include <string>
@@ -23,7 +24,10 @@ struct AppState
     bool viewportFocused = false;
     bool pauseAnimation = false;
     bool enableSkinning = true;
+    bool pauseVfx = false;
+    bool enableVfx = true;
     int selectedBoneIndex = -1;
     Animator animator;
+    VfxRuntime vfxRuntime;
 };
 }

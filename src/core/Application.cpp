@@ -75,6 +75,7 @@ void Application::Run()
         m_window.PollEvents();
         m_state.animator.SetPlaying(!m_state.pauseAnimation);
         m_state.animator.Update(m_timeStep.deltaSeconds);
+        m_state.vfxRuntime.Update(m_timeStep.deltaSeconds, m_state.pauseVfx || !m_state.enableVfx);
         m_state.camera.Update(m_timeStep.deltaSeconds, m_state.viewportHovered, m_state.viewportFocused);
         SyncRendererSelection();
         m_renderer->SetSkinningEnabled(m_state.enableSkinning);
@@ -101,6 +102,8 @@ void Application::Run()
         {
             m_renderer->SetSkeletonDebugLines({});
         }
+        m_renderer->SetVfxEnabled(m_state.enableVfx);
+        m_renderer->SetVfxParticles(m_state.vfxRuntime.RenderParticles());
         m_renderer->Render(m_state.camera, m_state.viewportOptions);
 
         BeginFrame();
@@ -109,6 +112,7 @@ void Application::Run()
         m_viewportPanel.Draw(m_state, *m_renderer);
         m_animationPanel.Draw(m_state);
         m_inspectorPanel.Draw(m_state);
+        m_vfxPanel.Draw(m_state);
         m_consolePanel.Draw();
         EndFrame();
     }
@@ -177,11 +181,14 @@ void Application::SyncRendererSelection()
         if (m_lastRenderedModelPath != m_state.selection.path)
         {
             m_renderer->SetModel(m_state.selection.model);
+            m_renderer->SetVfxGraph(std::nullopt);
             m_state.animator.SetData(&m_state.selection.model->skeleton, &m_state.selection.model->animationClips);
             m_state.selectedBoneIndex = m_state.selection.model->skeleton.Empty() ? -1 : 0;
             m_state.pauseAnimation = false;
             m_state.camera.FocusBounds(m_state.selection.model->boundsMin, m_state.selection.model->boundsMax);
             m_lastRenderedModelPath = m_state.selection.path;
+            m_lastRenderedVfxPath.clear();
+            m_state.vfxRuntime.Clear();
             Log::Push(
                 LogLevel::Info,
                 "Loaded model animation data: bones=" + std::to_string(m_state.selection.model->skeleton.bones.size()) +
@@ -201,6 +208,40 @@ void Application::SyncRendererSelection()
             m_state.selectedBoneIndex = -1;
             m_lastRenderedModelPath.clear();
         }
+    }
+
+    if (m_state.selection.type == AssetSelectionType::Vfx && m_state.selection.vfx)
+    {
+        if (m_lastRenderedVfxPath != m_state.selection.path)
+        {
+            m_renderer->SetModel(std::nullopt);
+            m_renderer->SetSkeletonDebugLines({});
+            m_state.animator.Clear();
+            m_state.selectedBoneIndex = -1;
+            m_state.vfxRuntime.SetGraph(m_state.selection.vfx);
+            m_renderer->SetVfxGraph(m_state.selection.vfx);
+            m_state.pauseVfx = false;
+            m_state.enableVfx = true;
+            m_state.camera.FocusBounds(glm::vec3(-1.0f), glm::vec3(1.0f));
+            m_lastRenderedModelPath.clear();
+            m_lastRenderedVfxPath = m_state.selection.path;
+            Log::Push(
+                LogLevel::Info,
+                "Loaded VFX graph: emitters=" + std::to_string(m_state.selection.vfx->emitters.size()) +
+                    ", materials=" + std::to_string(m_state.selection.vfx->materials.size()) +
+                    ", children=" + std::to_string(m_state.selection.vfx->children.size()),
+                m_state.selection.path.string()
+            );
+        }
+        return;
+    }
+
+    if (!m_lastRenderedVfxPath.empty())
+    {
+        m_renderer->SetVfxGraph(std::nullopt);
+        m_renderer->SetVfxParticles({});
+        m_state.vfxRuntime.Clear();
+        m_lastRenderedVfxPath.clear();
     }
 }
 

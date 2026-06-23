@@ -1,0 +1,89 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vs2022",
+      "displayName": "Visual Studio 2022",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022",
+      "cacheVariables": {
+        "LOL_ASSET_STUDIO_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "mingw-ninja-system",
+      "displayName": "MinGW + Ninja (system deps)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/mingw-system",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOL_ASSET_STUDIO_BUILD_TESTS": "OFF",
+        "LOL_ASSET_STUDIO_USE_SYSTEM_DEPS": "ON"
+      }
+    },
+    {
+      "name": "mingw-ninja-local",
+      "displayName": "MinGW + Ninja (local deps)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/mingw-local",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOL_ASSET_STUDIO_BUILD_TESTS": "OFF",
+        "LOL_ASSET_STUDIO_USE_SYSTEM_DEPS": "OFF"
+      }
+    },
+    {
+      "name": "mingw-ninja-local-tests",
+      "displayName": "MinGW + Ninja (local deps, tests)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/mingw-local-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOL_ASSET_STUDIO_BUILD_TESTS": "ON",
+        "LOL_ASSET_STUDIO_USE_SYSTEM_DEPS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2022-release",
+      "configurePreset": "vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "mingw-ninja-system",
+      "configurePreset": "mingw-ninja-system"
+    },
+    {
+      "name": "mingw-ninja-local",
+      "configurePreset": "mingw-ninja-local"
+    },
+    {
+      "name": "mingw-ninja-local-tests",
+      "configurePreset": "mingw-ninja-local-tests"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "vs2022-release",
+      "configurePreset": "vs2022",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "mingw-ninja-local-tests",
+      "configurePreset": "mingw-ninja-local-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

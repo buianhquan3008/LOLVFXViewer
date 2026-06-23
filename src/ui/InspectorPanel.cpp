@@ -173,6 +173,21 @@ void InspectorPanel::Draw(AppState& state)
             }
         }
         break;
+    case AssetSelectionType::Vfx:
+        if (state.selection.vfx)
+        {
+            ImGui::TextUnformatted("Type: VFX");
+            ImGui::Text("Graph: %s", state.selection.vfx->name.c_str());
+            ImGui::Text("Emitters: %d", static_cast<int>(state.selection.vfx->emitters.size()));
+            ImGui::Text("Materials: %d", static_cast<int>(state.selection.vfx->materials.size()));
+            ImGui::Text("Children: %d", static_cast<int>(state.selection.vfx->children.size()));
+            if (!state.selection.metadata.empty())
+            {
+                ImGui::Separator();
+                ImGui::TextWrapped("%s", state.selection.metadata.c_str());
+            }
+        }
+        break;
     case AssetSelectionType::Data:
         ImGui::TextUnformatted("Type: Data");
         ImGui::Separator();

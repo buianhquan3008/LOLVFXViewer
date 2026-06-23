@@ -2,6 +2,7 @@
 
 #include "assets/RiotModelLoader.h"
 #include "assets/TextureLoader.h"
+#include "vfx/VfxLoader.h"
 
 #include <algorithm>
 #include <cctype>
@@ -62,6 +63,11 @@ bool AssetManager::IsSupportedModel(const std::filesystem::path& path) const
     return ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb" || RiotModelLoader::IsRiotModelPath(path);
 }
 
+bool AssetManager::IsSupportedVfx(const std::filesystem::path& path) const
+{
+    return VfxLoader::IsSupportedPath(path);
+}
+
 bool AssetManager::IsDataFile(const std::filesystem::path& path) const
 {
     const auto value = Lowercase(path.filename().string());
@@ -101,6 +107,21 @@ AssetSelection AssetManager::Open(const std::filesystem::path& path)
         {
             selection.type = AssetSelectionType::Unsupported;
             selection.metadata = errorMessage;
+        }
+        return selection;
+    }
+
+    if (IsSupportedVfx(path))
+    {
+        selection.type = AssetSelectionType::Vfx;
+        selection.vfx = VfxLoader::Load(path, selection.metadata);
+        if (!selection.vfx)
+        {
+            selection.type = AssetSelectionType::Unsupported;
+            if (selection.metadata.empty())
+            {
+                selection.metadata = "Failed to parse VFX file.";
+            }
         }
         return selection;
     }

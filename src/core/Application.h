@@ -8,6 +8,7 @@
 #include "ui/AnimationPanel.h"
 #include "ui/ConsolePanel.h"
 #include "ui/InspectorPanel.h"
+#include "ui/VfxPanel.h"
 #include "ui/ViewportPanel.h"
 
 #include <filesystem>
@@ -36,9 +37,11 @@ private:
     AssetBrowserPanel m_assetBrowserPanel;
     AnimationPanel m_animationPanel;
     InspectorPanel m_inspectorPanel;
+    VfxPanel m_vfxPanel;
     ConsolePanel m_consolePanel;
     ViewportPanel m_viewportPanel;
     TimeStep m_timeStep;
     std::filesystem::path m_lastRenderedModelPath;
+    std::filesystem::path m_lastRenderedVfxPath;
 };
 }

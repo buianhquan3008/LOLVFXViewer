@@ -1,0 +1,49 @@
+VfxSystemDefinitionData {
+    effectName: "Sample Fire Burst";
+    duration: 3.0;
+    loop: true;
+
+    textures: [
+        TextureResource {
+            name: "FireTex";
+            path: "fire.png";
+        }
+    ];
+
+    materials: [
+        MaterialDefinition {
+            name: "FireMaterial";
+            texture: "FireTex";
+        }
+    ];
+
+    emitters: [
+        VfxEmitterDefinitionData {
+            name: "MainEmitter";
+            spawnRate: 24;
+            burstCount: 4;
+            maxParticles: 128;
+            velocityMin: [ -0.2, 0.8, -0.2 ];
+            velocityMax: [ 0.2, 1.6, 0.2 ];
+            materialName: "FireMaterial";
+            particle: VfxParticleDefinitionData {
+                lifetimeMin: 0.6;
+                lifetimeMax: 1.2;
+                startSize: 0.35;
+                endSize: 0.08;
+                startColor: [ 1.0, 0.75, 0.2, 1.0 ];
+                endColor: [ 1.0, 0.1, 0.0, 0.0 ];
+            };
+        }
+    ];
+
+    curves: [
+        CurveDefinition {
+            name: "AlphaFade";
+            points: [
+                CurvePoint { x: 0.0; y: 1.0; },
+                CurvePoint { x: 1.0; y: 0.0; }
+            ];
+        }
+    ];
+}

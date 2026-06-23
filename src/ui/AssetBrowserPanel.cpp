@@ -72,6 +72,7 @@ void AssetBrowserPanel::Draw(AppState& state)
                 const bool supported =
                     state.assetManager.IsSupportedTexture(entry.path()) ||
                     state.assetManager.IsSupportedModel(entry.path()) ||
+                    state.assetManager.IsSupportedVfx(entry.path()) ||
                     state.assetManager.IsDataFile(entry.path());
                 const std::string label = supported ? name : (name + " (meta)");
                 if (ImGui::Selectable(label.c_str(), state.selection.path == entry.path()))

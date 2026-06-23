@@ -2,6 +2,7 @@
 
 #include "assets/ModelLoader.h"
 #include "renderer/Texture2D.h"
+#include "vfx/VfxGraph.h"
 
 #include <filesystem>
 #include <optional>
@@ -15,6 +16,7 @@ enum class AssetSelectionType
     None,
     Texture,
     Model,
+    Vfx,
     Data,
     Unsupported
 };
@@ -25,6 +27,7 @@ struct AssetSelection
     std::filesystem::path path;
     std::optional<Texture2D> texture;
     std::optional<ModelData> model;
+    std::optional<VfxGraph> vfx;
     std::string metadata;
 };
 
@@ -37,6 +40,7 @@ public:
     std::vector<std::filesystem::directory_entry> EnumerateDirectory(const std::filesystem::path& directory) const;
     bool IsSupportedTexture(const std::filesystem::path& path) const;
     bool IsSupportedModel(const std::filesystem::path& path) const;
+    bool IsSupportedVfx(const std::filesystem::path& path) const;
     bool IsDataFile(const std::filesystem::path& path) const;
     AssetSelection Open(const std::filesystem::path& path);
 

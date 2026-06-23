@@ -1,5 +1,7 @@
 #include "renderer/Renderer.h"
 
+#include "assets/TextureLoader.h"
+
 #include <glad/gl.h>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -73,11 +75,51 @@ void main()
     FragColor = vec4(uColor, 1.0);
 }
 )";
+
+constexpr const char* kParticleVertexShader = R"(
+#version 460 core
+layout (location = 0) in vec3 aPosition;
+layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec4 aColor;
+
+uniform mat4 uViewProjection;
+
+out vec2 vTexCoord;
+out vec4 vColor;
+
+void main()
+{
+    vTexCoord = aTexCoord;
+    vColor = aColor;
+    gl_Position = uViewProjection * vec4(aPosition, 1.0);
+}
+)";
+
+constexpr const char* kParticleFragmentShader = R"(
+#version 460 core
+in vec2 vTexCoord;
+in vec4 vColor;
+
+uniform sampler2D uParticleTexture;
+
+out vec4 FragColor;
+
+void main()
+{
+    vec4 sampled = texture(uParticleTexture, vTexCoord);
+    FragColor = sampled * vColor;
+    if (FragColor.a <= 0.01)
+    {
+        discard;
+    }
+}
+)";
 }
 
 Renderer::Renderer()
     : m_staticModelShader(kStaticModelVertexShader, kModelFragmentShader),
-      m_gridShader(kGridVertexShader, kGridFragmentShader)
+      m_gridShader(kGridVertexShader, kGridFragmentShader),
+      m_particleShader(kParticleVertexShader, kParticleFragmentShader)
 {
     RebuildFramebuffer();
 
@@ -106,11 +148,29 @@ Renderer::Renderer()
     glEnableVertexArrayAttrib(m_skeletonVao, 0);
     glVertexArrayAttribFormat(m_skeletonVao, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayAttribBinding(m_skeletonVao, 0, 0);
+
+    glCreateVertexArrays(1, &m_particleVao);
+    glCreateBuffers(1, &m_particleVbo);
+    glVertexArrayVertexBuffer(m_particleVao, 0, m_particleVbo, 0, sizeof(VfxVertex));
+    glEnableVertexArrayAttrib(m_particleVao, 0);
+    glEnableVertexArrayAttrib(m_particleVao, 1);
+    glEnableVertexArrayAttrib(m_particleVao, 2);
+    glVertexArrayAttribFormat(m_particleVao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(VfxVertex, position));
+    glVertexArrayAttribFormat(m_particleVao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(VfxVertex, uv));
+    glVertexArrayAttribFormat(m_particleVao, 2, 4, GL_FLOAT, GL_FALSE, offsetof(VfxVertex, color));
+    glVertexArrayAttribBinding(m_particleVao, 0, 0);
+    glVertexArrayAttribBinding(m_particleVao, 1, 0);
+    glVertexArrayAttribBinding(m_particleVao, 2, 0);
+
+    CreateFallbackParticleTexture();
 }
 
 Renderer::~Renderer()
 {
     ReleaseModel();
+    if (m_defaultParticleTexture != 0) glDeleteTextures(1, &m_defaultParticleTexture);
+    if (m_particleVbo != 0) glDeleteBuffers(1, &m_particleVbo);
+    if (m_particleVao != 0) glDeleteVertexArrays(1, &m_particleVao);
     if (m_skeletonVbo != 0) glDeleteBuffers(1, &m_skeletonVbo);
     if (m_skeletonVao != 0) glDeleteVertexArrays(1, &m_skeletonVao);
     if (m_gridVbo != 0) glDeleteBuffers(1, &m_gridVbo);
@@ -171,6 +231,45 @@ void Renderer::SetModel(const std::optional<ModelData>& model)
         glVertexArrayAttribBinding(gpuMesh.vao, 2, 0);
         m_meshes.push_back(gpuMesh);
     }
+}
+
+void Renderer::SetVfxGraph(const std::optional<VfxGraph>& graph)
+{
+    m_vfxGraph = graph;
+    m_particleTexture.reset();
+    if (!m_vfxGraph)
+    {
+        return;
+    }
+
+    for (const VfxEmitter& emitter : m_vfxGraph->emitters)
+    {
+        if (!emitter.texturePath.empty())
+        {
+            m_particleTexture = TextureLoader::Load(emitter.texturePath);
+            if (m_particleTexture)
+            {
+                return;
+            }
+        }
+    }
+
+    for (const VfxMaterialRef& material : m_vfxGraph->materials)
+    {
+        if (!material.texturePath.empty())
+        {
+            m_particleTexture = TextureLoader::Load(material.texturePath);
+            if (m_particleTexture)
+            {
+                return;
+            }
+        }
+    }
+}
+
+void Renderer::SetVfxParticles(const std::vector<ParticleRenderData>& particles)
+{
+    m_vfxParticles = particles;
 }
 
 void Renderer::SetSkinningMatrices(const ModelData* model, const std::vector<glm::mat4>& globalPose)
@@ -251,6 +350,8 @@ void Renderer::SetSkinningMatrices(const ModelData* model, const std::vector<glm
 
 void Renderer::Render(const OrbitCamera& camera, const ViewportOptions& options)
 {
+    RebuildVfxVertices(camera);
+
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     glViewport(0, 0, m_width, m_height);
     glEnable(GL_DEPTH_TEST);
@@ -294,6 +395,26 @@ void Renderer::Render(const OrbitCamera& camera, const ViewportOptions& options)
         m_gridShader.SetVec3("uColor", glm::vec3(0.95f, 0.55f, 0.15f));
         glBindVertexArray(m_skeletonVao);
         glDrawArrays(GL_LINES, 0, m_skeletonVertexCount);
+    }
+
+    if (options.showVfx && m_vfxEnabled && !m_vfxVertices.empty())
+    {
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glDepthMask(GL_FALSE);
+
+        m_particleShader.Bind();
+        m_particleShader.SetMat4("uViewProjection", viewProjection);
+        m_particleShader.SetInt("uParticleTexture", 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_particleTexture ? m_particleTexture->Id() : m_defaultParticleTexture);
+        glBindVertexArray(m_particleVao);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_vfxVertices.size()));
+
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -343,5 +464,72 @@ void Renderer::ReleaseModel()
         if (mesh.vao != 0) glDeleteVertexArrays(1, &mesh.vao);
     }
     m_meshes.clear();
+}
+
+void Renderer::RebuildVfxVertices(const OrbitCamera& camera)
+{
+    m_vfxVertices.clear();
+    if (m_vfxParticles.empty())
+    {
+        glNamedBufferData(m_particleVbo, 0, nullptr, GL_DYNAMIC_DRAW);
+        return;
+    }
+
+    const glm::mat4 inverseView = glm::inverse(camera.ViewMatrix());
+    const glm::vec3 cameraRight = glm::normalize(glm::vec3(inverseView[0]));
+    const glm::vec3 cameraUp = glm::normalize(glm::vec3(inverseView[1]));
+
+    static constexpr std::array<glm::vec2, 6> kCorners = {
+        glm::vec2(-1.0f, -1.0f),
+        glm::vec2(1.0f, -1.0f),
+        glm::vec2(1.0f, 1.0f),
+        glm::vec2(-1.0f, -1.0f),
+        glm::vec2(1.0f, 1.0f),
+        glm::vec2(-1.0f, 1.0f)
+    };
+
+    static constexpr std::array<glm::vec2, 6> kUvs = {
+        glm::vec2(0.0f, 0.0f),
+        glm::vec2(1.0f, 0.0f),
+        glm::vec2(1.0f, 1.0f),
+        glm::vec2(0.0f, 0.0f),
+        glm::vec2(1.0f, 1.0f),
+        glm::vec2(0.0f, 1.0f)
+    };
+
+    m_vfxVertices.reserve(m_vfxParticles.size() * kCorners.size());
+    for (const ParticleRenderData& particle : m_vfxParticles)
+    {
+        const glm::vec3 rightOffset = cameraRight * particle.size * 0.5f;
+        const glm::vec3 upOffset = cameraUp * particle.size * 0.5f;
+        for (std::size_t vertexIndex = 0; vertexIndex < kCorners.size(); ++vertexIndex)
+        {
+            const glm::vec2 corner = kCorners[vertexIndex];
+            VfxVertex vertex;
+            vertex.position = particle.position + rightOffset * corner.x + upOffset * corner.y;
+            vertex.uv = kUvs[vertexIndex];
+            vertex.color = particle.color;
+            m_vfxVertices.push_back(vertex);
+        }
+    }
+
+    glNamedBufferData(
+        m_particleVbo,
+        static_cast<GLsizeiptr>(m_vfxVertices.size() * sizeof(VfxVertex)),
+        m_vfxVertices.data(),
+        GL_DYNAMIC_DRAW
+    );
+}
+
+void Renderer::CreateFallbackParticleTexture()
+{
+    const std::array<unsigned char, 4> whitePixel = {255, 255, 255, 255};
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_defaultParticleTexture);
+    glTextureStorage2D(m_defaultParticleTexture, 1, GL_RGBA8, 1, 1);
+    glTextureSubImage2D(m_defaultParticleTexture, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, whitePixel.data());
+    glTextureParameteri(m_defaultParticleTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(m_defaultParticleTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(m_defaultParticleTexture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_defaultParticleTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 }
